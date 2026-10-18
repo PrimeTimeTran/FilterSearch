@@ -1,9 +1,8 @@
-
 name: Deploy Filter/Search to GitHub Pages
 
 on:
   push:
-    branches: ["main"]
+    branches: ['main']
   workflow_dispatch:
 
 permissions:
@@ -26,7 +25,7 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 10
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -34,6 +33,15 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
+
+      - name: Diagnose site build
+        run: |
+          pwd
+          ls -la
+          echo "--- package.json ---"
+          cat package.json
+          echo "--- available scripts ---"
+          pnpm run
 
       - name: Build site
         run: pnpm run build:site -- --base=/FilterSearch/

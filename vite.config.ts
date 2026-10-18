@@ -16,7 +16,6 @@ export default defineConfig(({ command }) => ({
       input: {
         main: resolve(process.cwd(), "index.html"),
         privacy: resolve(process.cwd(), "privacy.html"),
-        njkTest: resolve(process.cwd(), "njk-test.html"),
       },
     },
   },
