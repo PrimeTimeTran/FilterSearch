@@ -1,0 +1,21 @@
+{
+	"manifest_version": 3,
+	"name": "Filter/Search",
+	"version": "0.1.0",
+	"description": "Filter promoted posts from supported feeds.",
+	"permissions": ["storage", "tabs"],
+	"background": {
+		"service_worker": "background.js",
+		"type": "module"
+	},
+	"content_scripts": [
+		{
+			"matches": [
+				"https://linkedin.com/*",
+				"https://*.linkedin.com/*"
+			],
+			"js": ["content.js"],
+			"run_at": "document_idle"
+		}
+	]
+}

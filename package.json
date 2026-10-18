@@ -1,0 +1,26 @@
+{
+  "name": "tit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc && vite build --config vite.content.config.ts && vite build --config vite.background.config.ts",
+    "check": "vitest run --coverage",
+    "dev": "npm run build",
+    "extension:verify": "playwright test test/extension-verify.spec.ts",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:run": "vitest run",
+    "test:watch": "vitest",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/chrome": "^0.1.0",
+    "@types/filesystem": "^0.0.36",
+    "@types/har-format": "^1.2.16",
+    "typescript": "^5.0.0",
+    "vite": "^7.0.0",
+    "vitest": "^5.0.1"
+  }
+}

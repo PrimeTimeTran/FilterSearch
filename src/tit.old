@@ -1,0 +1,356 @@
+;(() => {
+	'use strict'
+
+	/**
+	 * @typedef {{
+	 *   id: string,
+	 *   matches: (host: string) => boolean,
+	 *   findFeed: () => Element | null,
+	 *   findCandidates: (feed: Element) => Element[],
+	 *   extractSignals: (post: Element) => { isPromoted: boolean }
+	 * }} SiteAdapter
+	 *
+	 * @typedef {{
+	 *   placeholder: Comment,
+	 *   parent: Node,
+	 *   originalTransition: string,
+	 *   originalOpacity: string,
+	 *   originalPointerEvents: string,
+	 *   timeout?: ReturnType<typeof setTimeout>
+	 * }} HiddenPost
+	 */
+
+	console.info('[Filter/Search] CONTENT SCRIPT LOADED', {
+		host: location.hostname,
+		url: location.href,
+		time: new Date().toISOString(),
+	})
+
+	const promotedPosts = {
+		id: 'hide-promoted',
+		title: 'Hide promoted posts',
+		category: 'promotion',
+		predicate: {
+			field: 'isPromoted',
+			operator: 'equals',
+			value: true,
+		},
+		action: 'hide',
+		reversible: true,
+	}
+
+	const state = {
+		enabled: true,
+		/** @type {Map<Element, HiddenPost>} */
+		hidden: new Map(),
+		/** @type {MutationObserver | null} */
+		observer: null,
+		/** @type {MutationObserver | null} */
+		pageObserver: null,
+		/** @type {SiteAdapter | null} */
+		activeAdapter: null,
+	}
+
+	const log = (event, details = {}) =>
+		console.info(`[Filter/Search][LinkedIn] ${event}`, details)
+
+	/** @type {SiteAdapter[]} */
+	const SITE_ADAPTERS = [
+		{
+			id: 'linkedin',
+
+			matches: (host) =>
+				host === 'linkedin.com' || host.endsWith('.linkedin.com'),
+
+			findFeed: () => document.querySelector('[data-testid="mainFeed"]'),
+
+			findCandidates: (feed) => [
+				...feed.querySelectorAll('[data-lazy-mount-id]'),
+			],
+
+			extractSignals: (post) => ({
+				isPromoted: [...post.querySelectorAll('span')].some(
+					(el) => el.textContent?.trim() === 'Promoted',
+				),
+			}),
+		},
+		{
+			id: 'facebook',
+
+			matches: (host) =>
+				host === 'facebook.com' || host.endsWith('.facebook.com'),
+
+			// Facebook filtering is not implemented yet.
+			findFeed: () => null,
+			findCandidates: () => [],
+			extractSignals: () => ({ isPromoted: false }),
+		},
+	]
+
+	function updateButton() {
+		const button = document.getElementById('filter-search-toggle')
+		if (!(button instanceof HTMLButtonElement)) return
+
+		button.textContent =
+			`Filter/Search: ${state.enabled ? 'ON' : 'OFF'} ` +
+			`(${state.hidden.size} hidden)`
+
+		button.style.background = state.enabled ? '#176b45' : '#555'
+	}
+
+	function installButton() {
+		if (document.getElementById('filter-search-toggle')) return
+
+		const button = document.createElement('button')
+		button.id = 'filter-search-toggle'
+		button.type = 'button'
+		button.style.cssText = [
+			'position:fixed',
+			'left:20px',
+			'bottom:20px',
+			'z-index:2147483647',
+			'padding:10px 14px',
+			'border:0',
+			'border-radius:10px',
+			'color:white',
+			'font:600 13px system-ui',
+			'cursor:pointer',
+			'box-shadow:0 2px 12px #0004',
+		].join(';')
+
+		button.addEventListener('click', () => {
+			setEnabled(!state.enabled)
+		})
+
+		document.body.appendChild(button)
+		updateButton()
+	}
+
+	function restorePost(post) {
+		const record = state.hidden.get(post)
+		if (!record) return
+
+		if (record.timeout !== undefined) {
+			clearTimeout(record.timeout)
+		}
+
+		if (record.placeholder.parentNode) {
+			record.placeholder.parentNode.insertBefore(post, record.placeholder)
+			record.placeholder.remove()
+		} else if (!post.isConnected && record.parent.isConnected) {
+			// The original placeholder disappeared. Best-effort recovery.
+			record.parent.appendChild(post)
+			log('RESTORE_POSITION_LOST', { post })
+		}
+
+		post.style.transition = record.originalTransition
+		post.style.opacity = record.originalOpacity
+		post.style.pointerEvents = record.originalPointerEvents
+
+		state.hidden.delete(post)
+		log('POST_RESTORED', { post })
+		updateButton()
+	}
+
+	function hidePost(post) {
+		if (state.hidden.has(post)) return
+
+		const parent = post.parentNode
+		if (!parent) return
+
+		const placeholder = document.createComment('Filter/Search hidden post')
+
+		parent.insertBefore(placeholder, post)
+
+		/** @type {HiddenPost} */
+		const record = {
+			placeholder,
+			parent,
+			originalTransition: post.style.transition,
+			originalOpacity: post.style.opacity,
+			originalPointerEvents: post.style.pointerEvents,
+		}
+
+		// Record immediately to prevent duplicate observer work.
+		state.hidden.set(post, record)
+
+		post.style.transition = 'opacity 220ms ease'
+		post.style.opacity = '0'
+		post.style.pointerEvents = 'none'
+
+		record.timeout = setTimeout(() => {
+			// The user may have disabled filtering during the fade.
+			if (!state.enabled) {
+				restorePost(post)
+				return
+			}
+
+			post.remove()
+
+			log('POST_HIDDEN', { post })
+			updateButton()
+		}, 240)
+
+		updateButton()
+	}
+
+	function filterFeed(adapter = state.activeAdapter) {
+		if (!state.enabled || !adapter) return
+
+		const feed = adapter.findFeed()
+		if (!feed) return
+
+		for (const post of adapter.findCandidates(feed)) {
+			const signals = adapter.extractSignals(post)
+
+			if (
+				promotedPosts.predicate.field === 'isPromoted' &&
+				signals.isPromoted === promotedPosts.predicate.value
+			) {
+				hidePost(post)
+			}
+		}
+	}
+
+	function attachObserver(adapter) {
+		const feed = adapter.findFeed()
+		if (!feed) return false
+
+		state.observer?.disconnect()
+
+		state.observer = new MutationObserver(() => {
+			filterFeed(adapter)
+		})
+
+		state.observer.observe(feed, {
+			childList: true,
+			subtree: true,
+		})
+
+		log('OBSERVER_ATTACHED', { adapter: adapter.id })
+		filterFeed(adapter)
+
+		return true
+	}
+
+	function waitForFeed(adapter) {
+		state.pageObserver?.disconnect()
+
+		state.pageObserver = new MutationObserver(() => {
+			if (state.activeAdapter !== adapter) return
+
+			if (attachObserver(adapter)) {
+				state.pageObserver?.disconnect()
+				state.pageObserver = null
+			}
+		})
+
+		state.pageObserver.observe(document.body, {
+			childList: true,
+			subtree: true,
+		})
+
+		log('WAITING_FOR_FEED', { adapter: adapter.id })
+	}
+
+	function setEnabled(enabled) {
+		state.enabled = enabled
+
+		if (enabled) {
+			filterFeed()
+		} else {
+			for (const post of [...state.hidden.keys()]) {
+				restorePost(post)
+			}
+		}
+
+		updateButton()
+
+		log('FILTER_TOGGLED', {
+			enabled,
+			hiddenCount: state.hidden.size,
+		})
+	}
+
+	function stopFiltering() {
+		state.observer?.disconnect()
+		state.observer = null
+
+		state.pageObserver?.disconnect()
+		state.pageObserver = null
+
+		for (const post of [...state.hidden.keys()]) {
+			restorePost(post)
+		}
+
+		document.getElementById('filter-search-toggle')?.remove()
+		state.activeAdapter = null
+	}
+
+	function initializeForCurrentPage() {
+		const host = location.hostname
+		const adapter = SITE_ADAPTERS.find((site) => site.matches(host)) ?? null
+
+		stopFiltering()
+
+		if (!adapter) {
+			console.info('[Filter/Search] Unsupported domain', { host })
+			return
+		}
+
+		// Facebook is recognized but its feed adapter is not implemented.
+		if (adapter.id === 'facebook') {
+			console.info('[Filter/Search] Adapter not implemented', {
+				adapter: adapter.id,
+			})
+			return
+		}
+
+		state.activeAdapter = adapter
+
+		console.info('[Filter/Search] DOMAIN_MATCH', {
+			host,
+			adapter: adapter.id,
+		})
+
+		installButton()
+
+		if (!attachObserver(adapter)) {
+			waitForFeed(adapter)
+		}
+	}
+
+	function installNavigationListeners() {
+		const notifyNavigation = () => {
+			console.info('[Filter/Search] URL_CHANGED', {
+				host: location.hostname,
+				url: location.href,
+			})
+
+			initializeForCurrentPage()
+		}
+
+		window.addEventListener('popstate', notifyNavigation)
+		window.addEventListener('hashchange', notifyNavigation)
+
+		/** @type {('pushState' | 'replaceState')[]} */
+		const methods = ['pushState', 'replaceState']
+
+		for (const method of methods) {
+			const original = history[method]
+
+			history[method] = function (...args) {
+				const result = original.apply(this, args)
+
+				window.dispatchEvent(new Event('filter-search:navigation'))
+
+				return result
+			}
+		}
+
+		window.addEventListener('filter-search:navigation', notifyNavigation)
+	}
+
+	installNavigationListeners()
+	initializeForCurrentPage()
+})()
