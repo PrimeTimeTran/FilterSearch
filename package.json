@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc && vite build --config vite.content.config.ts && vite build --config vite.background.config.ts",
+    "build:site": "vite build",
+    "build:ext": "tsc && vite build --config vite.content.config.ts && vite build --config vite.background.config.ts",
     "check": "vitest run --coverage",
     "dev": "npm run build",
     "extension:verify": "playwright test test/extension-verify.spec.ts",
