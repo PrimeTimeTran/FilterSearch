@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#101312">
+    <meta name="description" content="{{ description }}">
+    <title>{{ title }} · Filter/Search</title>
+
+    <script>
+      tailwind = {
+        config: {
+          theme: {
+            extend: {
+              colors: {
+                canvas: 'rgb(var(--canvas) / <alpha-value>)',
+                surface: 'rgb(var(--surface) / <alpha-value>)',
+                raised: 'rgb(var(--raised) / <alpha-value>)',
+                ink: 'rgb(var(--ink) / <alpha-value>)',
+                muted: 'rgb(var(--muted) / <alpha-value>)',
+                line: 'rgb(var(--line) / <alpha-value>)',
+                accent: 'rgb(var(--accent) / <alpha-value>)',
+                'accent-soft': 'rgb(var(--accent-soft) / <alpha-value>)',
+                mint: 'rgb(var(--mint) / <alpha-value>)',
+                warning: 'rgb(var(--warning) / <alpha-value>)'
+              },
+              boxShadow: {
+                glow: '0 0 80px rgb(var(--accent) / .12)',
+                card: '0 18px 60px rgb(0 0 0 / .18)'
+              },
+              fontFamily: {
+                display: [
+                  'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'
+                ],
+                body: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif']
+              }
+            }
+          }
+        }
+      };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./style.css">
+  </head>
+
+  <body class="font-body text-ink antialiased">
+    <div class="pointer-events-none fixed inset-0 -z-10 grid-paper opacity-50"></div>
+    {# <a class="skip-link" href="#main-content">Skip to content</a> #}
+    {% include "src/partial/header.njk" %}
+    <main id="main-content">
+      {% block content %}{% endblock %}
+    </main>
+
+    {% include "src/partial/footer.njk" %}
+
+    <script>
+      const year = document.getElementById('year');
+      if (year) 
+        year.textContent = new Date().getFullYear();
+    </script>
+    {% block scripts %}{% endblock %}
+    <script>
+      document.addEventListener('click', (event) => {
+        const link = event
+          .target
+          .closest('a[href*="#"]');
+        if (!link) 
+          return;
+        
+        const url = new URL(link.href, window.location.href);
+
+        // Only handle anchors on the current page.
+        if (url.origin !== window.location.origin || url.pathname !== window.location.pathname || !url.hash) 
+          return;
+        
+        const target = document.querySelector(`#${CSS.escape(decodeURIComponent(url.hash.slice(1)))}`);
+        if (!target) 
+          return;
+        event.preventDefault();
+        target.scrollIntoView({behavior: 'smooth', block: 'start'});
+
+        // Keep the URL hash updated without triggering a second jump.
+        history.pushState(null, '', url.hash);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,68 @@
+@import url('./style/app.css');
+@import url('./style/components.css');
+@import url('./style/tokens.css');
+
+/* Semantic design tokens: edit this set to retheme the entire page. */
+:root {
+	color-scheme: dark;
+	--canvas: 16 19 18;
+	--surface: 24 29 27;
+	--raised: 32 39 36;
+	--ink: 240 244 239;
+	--muted: 165 177 169;
+	--line: 61 73 66;
+	--accent: 193 255 107;
+	--accent-soft: 44 65 35;
+	--mint: 122 230 190;
+	--warning: 255 195 116;
+}
+html {
+	scroll-behavior: smooth;
+}
+body {
+	background:
+		radial-gradient(
+			ellipse at 78% 4%,
+			rgb(var(--accent) / 0.09),
+			transparent 30rem
+		),
+		radial-gradient(
+			ellipse at 0% 38%,
+			rgb(var(--mint) / 0.055),
+			transparent 28rem
+		),
+		rgb(var(--canvas));
+}
+.grid-paper {
+	background-image:
+		linear-gradient(rgb(var(--line) / 0.22) 1px, transparent 1px),
+		linear-gradient(90deg, rgb(var(--line) / 0.22) 1px, transparent 1px);
+	background-size: 42px 42px;
+	mask-image: linear-gradient(to bottom, black, transparent 85%);
+}
+.text-balance {
+	text-wrap: balance;
+}
+.eyebrow {
+	letter-spacing: 0.16em;
+}
+.token-card {
+	background: linear-gradient(
+		145deg,
+		rgb(var(--surface) / 0.95),
+		rgb(var(--surface) / 0.66)
+	);
+}
+.outline-glow {
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / 0.035),
+		0 18px 60px rgb(0 0 0 / 0.12);
+}
+::selection {
+	background: rgb(var(--accent) / 0.32);
+	color: rgb(var(--ink));
+}
+
+section[id] {
+	scroll-margin-top: 1.5rem;
+}

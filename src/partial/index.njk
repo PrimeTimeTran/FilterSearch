@@ -1,0 +1,29 @@
+{% extends "src/layout/base.njk" %}
+
+{% set title = "The social web, on your terms" %}
+{% set description = "Filter/Search is a user-controlled layer for the social web: make feeds intentional, measure what you see, and discover the web on your terms." %}
+
+{% block content %}
+  <!-- Move the existing sections from your old index.html here. -->
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    const luckyButton = document.getElementById('luckyButton');
+    const luckyNote = document.getElementById('luckyNote');
+    let exploring = false;
+
+    if (luckyButton && luckyNote) {
+      luckyButton.addEventListener('click', () => {
+        exploring = !exploring;
+        luckyButton.innerHTML = exploring
+          ? '<span>↶</span> Return to my filters'
+          : "<span>✦</span> I'm Feeling Lucky";
+
+        luckyNote.textContent = exploring
+          ? 'In the imagined product, your usual filters would be paused for this exploration.'
+          : 'A concept: temporarily explore beyond your usual filters.';
+      });
+    }
+  </script>
+{% endblock %}
