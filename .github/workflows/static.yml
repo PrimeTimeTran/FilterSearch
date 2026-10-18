@@ -36,7 +36,7 @@ jobs:
         run: pnpm install --no-frozen-lockfile
 
       - name: Build site
-        run: pnpm build -- --base=/FilterSearch/
+        run: pnpm run build:site -- --base=/FilterSearch/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
